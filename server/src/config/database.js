@@ -1,19 +1,20 @@
 const { Sequelize } = require('sequelize');
+require('dotenv').config(); // Aseguramos cargar las variables de entorno
 
 let sequelize;
 
 if (process.env.DATABASE_URL) {
-    // Configuración para Producción (Internet)
+    // Configuración para Producción (Render / Internet)
     sequelize = new Sequelize(process.env.DATABASE_URL, {
-        dialect: 'postgres', // O 'mysql' dependiendo de lo que uses en la nube
+        dialect: 'postgres', // <--- ESTO ES CRÍTICO
         protocol: 'postgres',
-        logging: false,
         dialectOptions: {
             ssl: {
                 require: true,
-                rejectUnauthorized: false
+                rejectUnauthorized: false // Necesario para conexiones externas en Render
             }
-        }
+        },
+        logging: false
     });
 } else {
     // Configuración para Desarrollo (Tu PC)
