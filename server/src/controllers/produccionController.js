@@ -196,6 +196,7 @@ const iniciarProduccion = async (req, res) => {
 // 3. AVANZAR ETAPA 
 const avanzarEtapa = async (req, res) => {
     const { id_cofre, id_etapa_nueva, id_trabajador, materialesExtra } = req.body;
+    console.log('🔍 AVANZAR ETAPA - Body recibido:', JSON.stringify({ id_cofre, id_etapa_nueva, id_trabajador, materialesExtra }, null, 2));
     const t = await sequelize.transaction();
 
     try {
@@ -221,7 +222,9 @@ const avanzarEtapa = async (req, res) => {
         }
 
         // --- PROCESAR MATERIALES EXTRA (PEPS) ---
+        console.log('🔍 materialesExtra recibidos:', materialesExtra ? materialesExtra.length : 'null/undefined');
         if (materialesExtra && materialesExtra.length > 0) {
+            console.log('🔍 Procesando', materialesExtra.length, 'materiales extra...');
             for (const mat of materialesExtra) {
                 let cantidadRequerida = parseFloat(mat.cantidad);
                 const materiaId = mat.id_materia;
