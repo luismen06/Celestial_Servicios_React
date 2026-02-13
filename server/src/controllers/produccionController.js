@@ -10,12 +10,12 @@ const obtenerProduccion = async (req, res) => {
             include: [
                 { model: ModeloCofre, attributes: ['nombre'] },
                 { model: Etapa, attributes: ['nombre'] },
-                { 
-                    model: HistorialProduccion, 
+                {
+                    model: HistorialProduccion,
                     as: 'historial',
                     include: [
                         { model: Trabajador, attributes: ['nombre'] },
-                        { model: Etapa, attributes: ['nombre'] } 
+                        { model: Etapa, attributes: ['nombre'] }
                     ]
                 },
                 // Incluimos Salidas para sumar los costos ya calculados
@@ -27,7 +27,7 @@ const obtenerProduccion = async (req, res) => {
         const datos = produccion.map(c => {
             const listaHistorial = c.historial || [];
             const ultimoEvento = listaHistorial.sort((a, b) => b.id_historial - a.id_historial)[0];
-            
+
             // --- CÁLCULO DE COSTO REAL (MUCHO MÁS FÁCIL) ---
             let costoTotal = 0;
             if (c.Salidas) {
@@ -36,8 +36,8 @@ const obtenerProduccion = async (req, res) => {
                     costoTotal += parseFloat(s.costo_calculado || 0);
                 });
             }
-            
-            
+
+
             return {
                 id_cofre: c.id_cofre,
                 modelo: c.ModeloCofre ? c.ModeloCofre.nombre : 'Desconocido',
@@ -45,9 +45,9 @@ const obtenerProduccion = async (req, res) => {
                 id_etapa_actual: c.id_etapa_actual,
                 trabajador: (ultimoEvento && ultimoEvento.Trabajador) ? ultimoEvento.Trabajador.nombre : 'Sin asignar',
                 estado: c.estado,
-                
+
                 costo_total: costoTotal, // <--- COSTO REAL PEPS
-                
+
                 detalles_historial: listaHistorial.sort((a, b) => a.id_historial - b.id_historial).map(h => ({
                     etapa: h.Etapa ? h.Etapa.nombre : 'Etapa ' + h.id_etapa,
                     trabajador: h.Trabajador ? h.Trabajador.nombre : 'N/A',
@@ -106,9 +106,9 @@ const iniciarProduccion = async (req, res) => {
         // Si la lista de faltantes tiene algo, DETENEMOS TODO AQUÍ.
         if (faltantes.length > 0) {
             await t.rollback(); // No se crea el cofre, no se toca nada.
-            return res.status(409).json({ 
+            return res.status(409).json({
                 error: 'STOCK_INSUFICIENTE',
-                lista: faltantes 
+                lista: faltantes
             });
         }
 
@@ -149,7 +149,7 @@ const iniciarProduccion = async (req, res) => {
 
                 const disponibleEnLote = parseFloat(lote.stock_restante_lote);
                 const costoLote = parseFloat(lote.costo_unitario);
-                
+
                 let aDescontar = 0;
 
                 if (disponibleEnLote >= cantidadRequerida) {
@@ -195,31 +195,23 @@ const iniciarProduccion = async (req, res) => {
 
 // 3. AVANZAR ETAPA 
 const avanzarEtapa = async (req, res) => {
-    const { id_cofre, id_etapa_nueva, id_trabajador } = req.body;
+    const { id_cofre, id_etapa_nueva, id_trabajador, materialesExtra } = req.body;
     const t = await sequelize.transaction();
 
     try {
         // DETECTAR SI ES EL FINAL
-        // Si el frontend nos manda "TERMINADO" o null en la etapa nueva
         const esFin = (id_etapa_nueva === "TERMINADO" || !id_etapa_nueva);
 
         if (esFin) {
-            // --- LÓGICA DE FINALIZACIÓN ---
-            await Cofre.update({ 
+            await Cofre.update({
                 estado: 'Terminado',
                 fecha_finalizado: new Date()
             }, { where: { id_cofre }, transaction: t });
-
-            // (Opcional) Registrar en historial que se finalizó
-            // Podríamos dejar id_etapa como la última que tuvo o null
         } else {
-            // --- LÓGICA DE AVANCE NORMAL ---
-            await Cofre.update({ 
+            await Cofre.update({
                 id_etapa_actual: id_etapa_nueva,
-                // Opcional: Actualizar trabajador actual si usas esa lógica
             }, { where: { id_cofre }, transaction: t });
 
-            // Guardar Historial del cambio
             await HistorialProduccion.create({
                 id_cofre,
                 id_etapa: id_etapa_nueva,
@@ -228,12 +220,81 @@ const avanzarEtapa = async (req, res) => {
             }, { transaction: t });
         }
 
+        // --- PROCESAR MATERIALES EXTRA (PEPS) ---
+        if (materialesExtra && materialesExtra.length > 0) {
+            for (const mat of materialesExtra) {
+                let cantidadRequerida = parseFloat(mat.cantidad);
+                const materiaId = mat.id_materia;
+
+                // Buscar materia prima global
+                const materiaGlobal = await MateriaPrima.findByPk(materiaId, { transaction: t });
+                if (!materiaGlobal) {
+                    throw new Error(`Materia prima ID ${materiaId} no existe.`);
+                }
+
+                // Buscar lotes disponibles (PEPS)
+                const lotesDisponibles = await Entrada.findAll({
+                    where: {
+                        id_materia: materiaId,
+                        stock_restante_lote: { [Op.gt]: 0 }
+                    },
+                    order: [['fecha', 'ASC']],
+                    transaction: t
+                });
+
+                const stockEnLotes = lotesDisponibles.reduce((sum, l) => sum + parseFloat(l.stock_restante_lote), 0);
+                if (stockEnLotes < cantidadRequerida) {
+                    throw new Error(`Stock insuficiente para ${materiaGlobal.nombre}. Disponible: ${stockEnLotes}, Requerido: ${cantidadRequerida}`);
+                }
+
+                // Consumir lotes PEPS
+                let porDescontar = cantidadRequerida;
+                let costoTotalSalida = 0;
+
+                for (const lote of lotesDisponibles) {
+                    if (porDescontar <= 0) break;
+
+                    const disponible = parseFloat(lote.stock_restante_lote);
+                    const costoUnitarioLote = parseFloat(lote.costo_unitario || 0);
+                    let tomar = 0;
+
+                    if (disponible >= porDescontar) {
+                        tomar = porDescontar;
+                        lote.stock_restante_lote = disponible - tomar;
+                        porDescontar = 0;
+                    } else {
+                        tomar = disponible;
+                        lote.stock_restante_lote = 0;
+                        porDescontar -= tomar;
+                    }
+
+                    costoTotalSalida += (tomar * costoUnitarioLote);
+                    await lote.save({ transaction: t });
+                }
+
+                // Crear registro de Salida
+                await Salida.create({
+                    id_materia: materiaId,
+                    id_cofre: id_cofre,
+                    cantidad_base_usada: cantidadRequerida,
+                    costo_calculado: costoTotalSalida,
+                    tipo_salida: 'Produccion'
+                }, { transaction: t });
+
+                // Actualizar stock global
+                await materiaGlobal.decrement('cantidad_total_base', {
+                    by: cantidadRequerida,
+                    transaction: t
+                });
+            }
+        }
+
         await t.commit();
         res.json({ message: esFin ? 'Producción Finalizada' : 'Etapa Avanzada' });
 
     } catch (error) {
         await t.rollback();
-        console.error(error);
+        console.error("Error en avanzarEtapa:", error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -241,7 +302,7 @@ const finalizarProduccion = async (req, res) => {
     const { id_cofre } = req.body;
     try {
         await Cofre.update(
-            { 
+            {
                 estado: 'Terminado',
                 fecha_finalizado: new Date()
             },

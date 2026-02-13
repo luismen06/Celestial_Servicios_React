@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 const ProduccionPage = () => {
     const [ordenes, setOrdenes] = useState([]);
     const [loading, setLoading] = useState(true);
-    
+
     // Maestros
     const [modelos, setModelos] = useState([]);
     const [trabajadores, setTrabajadores] = useState([]);
@@ -21,7 +21,7 @@ const ProduccionPage = () => {
 
     const [ordenAvanzar, setOrdenAvanzar] = useState(null);
     const [idTrabajadorNext, setIdTrabajadorNext] = useState('');
-    
+
     // Materiales Extra
     const [materialExtraSel, setMaterialExtraSel] = useState('');
     const [cantidadExtra, setCantidadExtra] = useState('');
@@ -36,7 +36,7 @@ const ProduccionPage = () => {
         try {
             const data = await produccionService.obtenerProduccion();
             setOrdenes(data);
-        } catch (error) { console.error(error); } 
+        } catch (error) { console.error(error); }
         finally { setLoading(false); }
     };
 
@@ -63,7 +63,7 @@ const ProduccionPage = () => {
 
     const agregarMaterialExtra = () => {
         if (!materialExtraSel || !cantidadExtra) return;
-        
+
         // Usamos la variable calculada arriba
         if (!materialActivo) return;
 
@@ -101,11 +101,11 @@ const ProduccionPage = () => {
     const getNextStepInfo = () => {
         if (!ordenAvanzar) return null;
         const currentEtapaIndex = etapas.findIndex(e => e.nombre === ordenAvanzar.etapa);
-        
+
         if (currentEtapaIndex === -1 || currentEtapaIndex === etapas.length - 1) {
             return { id: 'TERMINADO', nombre: 'FINALIZAR PRODUCCIÓN' };
         }
-        
+
         const nextEtapa = etapas[currentEtapaIndex + 1];
         return { id: nextEtapa.id_etapa, nombre: nextEtapa.nombre };
     };
@@ -117,14 +117,17 @@ const ProduccionPage = () => {
         try {
             await produccionService.avanzarEtapa({
                 id_cofre: ordenAvanzar.id_cofre,
-                id_etapa_nueva: nextStep.id, 
-                id_trabajador: idTrabajadorNext
+                id_etapa_nueva: nextStep.id,
+                id_trabajador: idTrabajadorNext,
+                materialesExtra: listaMaterialesExtra
             });
             Swal.fire({ icon: 'success', title: 'Actualizado', timer: 1500, showConfirmButton: false });
             setOrdenAvanzar(null);
+            setListaMaterialesExtra([]);
             cargarTablero();
+            cargarMaestros(); // Refrescar inventario
         } catch (error) {
-            Swal.fire('Error', 'No se pudo avanzar', 'error');
+            Swal.fire('Error', error.response?.data?.error || 'No se pudo avanzar', 'error');
         }
     };
 
@@ -146,20 +149,20 @@ const ProduccionPage = () => {
                 {ordenes.filter(o => o.estado !== 'Terminado').map(orden => (
                     <div key={orden.id_cofre} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 relative overflow-hidden hover:shadow-lg transition-all group">
                         <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#3b82f6]"></div>
-                        
+
                         <div className="flex justify-between items-start mb-3 pl-3">
                             <span className="bg-slate-100 text-slate-500 text-[10px] font-extrabold px-2 py-1 rounded">#{orden.id_cofre}</span>
                             <span className="bg-blue-50 text-[#2563eb] text-[10px] font-extrabold px-2 py-1 rounded uppercase tracking-wider">EN PROCESO</span>
                         </div>
 
                         <h3 className="text-xl font-bold text-slate-800 mb-2 pl-3">{orden.modelo}</h3>
-                        
+
                         <div className="pl-3 mb-6">
                             <p className="text-sm text-slate-500 flex items-center gap-2">
                                 <Clock size={16} className="text-slate-400" /> Etapa: <span className="text-slate-700 font-semibold">{orden.etapa}</span>
                             </p>
                         </div>
-                        
+
                         <div className="border-t border-slate-100 pt-4 flex justify-between items-center pl-3">
                             <div>
                                 <p className="text-xs text-slate-400 font-bold uppercase mb-1">Resp: <span className="text-slate-700 normal-case">{orden.trabajador}</span></p>
@@ -167,13 +170,13 @@ const ProduccionPage = () => {
                                     ${orden.costo_total?.toLocaleString('es-CO')}
                                 </span>
                             </div>
-                            <button 
-                                onClick={() => { 
-                                    setOrdenAvanzar(orden); 
-                                    setIdTrabajadorNext(''); 
-                                    setListaMaterialesExtra([]); 
+                            <button
+                                onClick={() => {
+                                    setOrdenAvanzar(orden);
+                                    setIdTrabajadorNext('');
+                                    setListaMaterialesExtra([]);
                                     setMaterialExtraSel('');
-                                }} 
+                                }}
                                 className="bg-[#1e293b] text-white p-3 rounded-lg hover:bg-black transition-colors shadow-lg"
                             >
                                 <ArrowRight size={20} />
@@ -187,7 +190,7 @@ const ProduccionPage = () => {
             {ordenAvanzar && (
                 <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
                     <div className="bg-white rounded-xl shadow-2xl w-full max-w-[600px] overflow-hidden">
-                        
+
                         <div className="flex justify-between items-center p-6 pb-0">
                             <h3 className="text-xl font-bold text-slate-700">Reporte de Avance</h3>
                             <button onClick={() => setOrdenAvanzar(null)} className="text-slate-400 hover:text-slate-600">
@@ -207,7 +210,7 @@ const ProduccionPage = () => {
                             <div className="mb-6">
                                 <h4 className="text-sm font-bold text-slate-600 mb-3">1. Materiales Usados</h4>
                                 <div className="flex gap-3 mb-2">
-                                    <select 
+                                    <select
                                         className="flex-1 p-3 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500 bg-white"
                                         value={materialExtraSel}
                                         onChange={handleMaterialChange} // <--- CAMBIO AQUÍ
@@ -217,8 +220,8 @@ const ProduccionPage = () => {
                                             <option key={m.id_materia} value={m.id_materia}>{m.nombre} ({m.unidad_base})</option>
                                         ))}
                                     </select>
-                                    <input 
-                                        type="number" 
+                                    <input
+                                        type="number"
                                         className="w-24 p-3 border border-slate-200 rounded-lg text-sm outline-none focus:border-blue-500"
                                         placeholder="Cant."
                                         value={cantidadExtra}
@@ -258,7 +261,7 @@ const ProduccionPage = () => {
                                 <div className="mb-5">
                                     <h4 className="text-sm font-bold text-slate-600 mb-2">2. Responsable y Destino</h4>
                                     <label className="block text-xs font-semibold text-slate-500 mb-1">Trabajador Responsable:</label>
-                                    <select 
+                                    <select
                                         className="w-full p-3 border border-red-300 rounded-lg text-sm outline-none focus:ring-1 focus:ring-red-500 bg-white"
                                         value={idTrabajadorNext}
                                         onChange={e => setIdTrabajadorNext(e.target.value)}
@@ -286,22 +289,22 @@ const ProduccionPage = () => {
                     </div>
                 </div>
             )}
-            
+
             {showModalIniciar && (
-                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                     <div className="bg-white p-8 rounded-xl shadow-2xl w-[400px]">
                         <h3 className="text-xl font-bold text-slate-800 mb-6">Iniciar Nueva Orden</h3>
                         <form onSubmit={handleIniciar} className="space-y-5">
                             <div>
                                 <label className="block text-sm font-bold text-slate-600 mb-2">Modelo</label>
-                                <select className="w-full p-3 border rounded-lg bg-white" value={newOrden.id_modelo} onChange={e => setNewOrden({...newOrden, id_modelo: e.target.value})} required>
+                                <select className="w-full p-3 border rounded-lg bg-white" value={newOrden.id_modelo} onChange={e => setNewOrden({ ...newOrden, id_modelo: e.target.value })} required>
                                     <option value="">Seleccionar...</option>
                                     {modelos.map(m => <option key={m.id_modelo} value={m.id_modelo}>{m.nombre}</option>)}
                                 </select>
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-600 mb-2">Trabajador</label>
-                                <select className="w-full p-3 border rounded-lg bg-white" value={newOrden.id_trabajador} onChange={e => setNewOrden({...newOrden, id_trabajador: e.target.value})} required>
+                                <select className="w-full p-3 border rounded-lg bg-white" value={newOrden.id_trabajador} onChange={e => setNewOrden({ ...newOrden, id_trabajador: e.target.value })} required>
                                     <option value="">Seleccionar...</option>
                                     {trabajadores.map(t => <option key={t.id_trabajador} value={t.id_trabajador}>{t.nombre}</option>)}
                                 </select>
