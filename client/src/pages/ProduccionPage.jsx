@@ -134,7 +134,7 @@ const ProduccionPage = () => {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto min-h-screen bg-[#f8fafc]">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-screen bg-[#f8fafc]">
             {/* ENCABEZADO */}
             <div className="flex justify-between items-center mb-10">
                 <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">

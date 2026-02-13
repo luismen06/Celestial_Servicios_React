@@ -7,7 +7,7 @@ const ConfiguracionPage = () => {
     // --- ESTADO GENERAL ---
     const [activeTab, setActiveTab] = useState('modelos');
     const [loading, setLoading] = useState(true);
-    
+
     // --- DATOS ---
     const [modelos, setModelos] = useState([]);
     const [trabajadores, setTrabajadores] = useState([]);
@@ -50,11 +50,11 @@ const ConfiguracionPage = () => {
         e.preventDefault();
         try {
             // Enviamos ID solo si estamos editando
-            await configService.guardarModelo({ 
-                nombre: newModelo, 
-                id_modelo: editModeloId 
+            await configService.guardarModelo({
+                nombre: newModelo,
+                id_modelo: editModeloId
             });
-            
+
             Swal.fire({
                 icon: 'success',
                 title: editModeloId ? 'Actualizado' : 'Creado',
@@ -107,10 +107,10 @@ const ConfiguracionPage = () => {
     const handleGuardarTrabajador = async (e) => {
         e.preventDefault();
         try {
-            await configService.guardarTrabajador({ 
-                nombre: newTrabajador, 
+            await configService.guardarTrabajador({
+                nombre: newTrabajador,
                 activo: true,
-                id_trabajador: editTrabajadorId 
+                id_trabajador: editTrabajadorId
             });
 
             Swal.fire({
@@ -139,10 +139,10 @@ const ConfiguracionPage = () => {
 
     const handleToggleTrabajador = async (t) => {
         try {
-            await configService.guardarTrabajador({ 
-                id_trabajador: t.id_trabajador, 
-                nombre: t.nombre, 
-                activo: !t.activo 
+            await configService.guardarTrabajador({
+                id_trabajador: t.id_trabajador,
+                nombre: t.nombre,
+                activo: !t.activo
             });
             cargarDatos();
         } catch (error) {
@@ -156,8 +156,8 @@ const ConfiguracionPage = () => {
     const handleGuardarProveedor = async (e) => {
         e.preventDefault();
         try {
-            await configService.guardarProveedor({ 
-                nombre: newProveedor, 
+            await configService.guardarProveedor({
+                nombre: newProveedor,
                 id_proveedor: editProveedorId
             });
 
@@ -190,7 +190,7 @@ const ConfiguracionPage = () => {
     // RENDER
     // ==========================================
     return (
-        <div className="p-8 max-w-6xl mx-auto">
+        <div className="p-4 md:p-8 max-w-6xl mx-auto">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
                     <Settings className="text-blue-600" size={32} />
@@ -201,19 +201,19 @@ const ConfiguracionPage = () => {
 
             {/* --- TABS NAVIGATION --- */}
             <div className="flex border-b border-slate-200 mb-6">
-                <button 
+                <button
                     onClick={() => setActiveTab('modelos')}
                     className={`px-6 py-3 font-medium flex items-center gap-2 transition-colors ${activeTab === 'modelos' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <Box size={18} /> Modelos de Cofres
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab('trabajadores')}
                     className={`px-6 py-3 font-medium flex items-center gap-2 transition-colors ${activeTab === 'trabajadores' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                 >
                     <Users size={18} /> Trabajadores
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab('proveedores')}
                     className={`px-6 py-3 font-medium flex items-center gap-2 transition-colors ${activeTab === 'proveedores' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-slate-500 hover:text-slate-700'}`}
                 >
@@ -223,7 +223,7 @@ const ConfiguracionPage = () => {
 
             {/* --- CONTENIDO DE LAS TABS --- */}
             <div className="bg-white rounded-xl shadow border border-slate-100 p-6 min-h-[400px]">
-                
+
                 {/* 1. TAB MODELOS */}
                 {activeTab === 'modelos' && (
                     <div className="animate-fade-in">
@@ -232,8 +232,8 @@ const ConfiguracionPage = () => {
                                 <label className="block text-sm font-medium text-slate-600 mb-1">
                                     {editModeloId ? 'Editando Modelo' : 'Nuevo Modelo'}
                                 </label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     className={`w-full p-3 border rounded-lg outline-none focus:ring-2 ${editModeloId ? 'border-amber-400 focus:ring-amber-400 bg-amber-50' : 'border-slate-300 focus:ring-blue-500'}`}
                                     placeholder="Nombre del modelo (ej: Baúl Clásico)"
                                     value={newModelo}
@@ -241,14 +241,14 @@ const ConfiguracionPage = () => {
                                     required
                                 />
                             </div>
-                            
+
                             <button className={`px-6 py-3 rounded-lg text-white font-medium flex items-center gap-2 ${editModeloId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
                                 <Save size={18} /> {editModeloId ? 'Actualizar' : 'Guardar'}
                             </button>
-                            
+
                             {editModeloId && (
-                                <button 
-                                    type="button" 
+                                <button
+                                    type="button"
                                     onClick={limpiarModelo}
                                     className="px-4 py-3 rounded-lg bg-slate-200 text-slate-600 hover:bg-slate-300 font-medium"
                                 >
@@ -262,14 +262,14 @@ const ConfiguracionPage = () => {
                                 <div key={m.id_modelo} className={`flex justify-between items-center p-4 border rounded-lg ${editModeloId === m.id_modelo ? 'border-amber-400 bg-amber-50 shadow-md' : 'bg-slate-50'}`}>
                                     <span className="font-semibold text-slate-700">{m.nombre}</span>
                                     <div className="flex gap-2">
-                                        <button 
+                                        <button
                                             onClick={() => cargarEdicionModelo(m)}
                                             className="text-slate-400 hover:text-blue-600 p-2 hover:bg-white rounded transition-colors"
                                             title="Editar"
                                         >
                                             <Pencil size={18} />
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => handleEliminarModelo(m.id_modelo)}
                                             className="text-slate-400 hover:text-red-600 p-2 hover:bg-white rounded transition-colors"
                                             title="Eliminar"
@@ -291,8 +291,8 @@ const ConfiguracionPage = () => {
                                 <label className="block text-sm font-medium text-slate-600 mb-1">
                                     {editTrabajadorId ? 'Editando Trabajador' : 'Nuevo Trabajador'}
                                 </label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     className={`w-full p-3 border rounded-lg outline-none focus:ring-2 ${editTrabajadorId ? 'border-amber-400 focus:ring-amber-400 bg-amber-50' : 'border-slate-300 focus:ring-blue-500'}`}
                                     placeholder="Nombre completo"
                                     value={newTrabajador}
@@ -329,13 +329,13 @@ const ConfiguracionPage = () => {
                                                 </span>
                                             </td>
                                             <td className="p-4 text-right flex justify-end items-center gap-3">
-                                                <button 
+                                                <button
                                                     onClick={() => cargarEdicionTrabajador(t)}
                                                     className="text-slate-400 hover:text-blue-600 transition-colors"
                                                 >
                                                     <Pencil size={18} />
                                                 </button>
-                                                <button 
+                                                <button
                                                     onClick={() => handleToggleTrabajador(t)}
                                                     className="text-sm font-medium text-slate-500 hover:text-slate-800 hover:underline"
                                                 >
@@ -358,8 +358,8 @@ const ConfiguracionPage = () => {
                                 <label className="block text-sm font-medium text-slate-600 mb-1">
                                     {editProveedorId ? 'Editando Proveedor' : 'Nuevo Proveedor'}
                                 </label>
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     className={`w-full p-3 border rounded-lg outline-none focus:ring-2 ${editProveedorId ? 'border-amber-400 focus:ring-amber-400 bg-amber-50' : 'border-slate-300 focus:ring-blue-500'}`}
                                     placeholder="Nombre Empresa / Proveedor"
                                     value={newProveedor}
@@ -384,7 +384,7 @@ const ConfiguracionPage = () => {
                                         <Truck className="text-slate-400" size={20} />
                                         <span className="font-medium text-slate-700">{p.nombre}</span>
                                     </div>
-                                    <button 
+                                    <button
                                         onClick={() => cargarEdicionProveedor(p)}
                                         className="text-slate-400 hover:text-blue-600 p-2 hover:bg-white rounded transition-colors"
                                     >

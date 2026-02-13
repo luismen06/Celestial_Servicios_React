@@ -37,8 +37,8 @@ const InventarioPage = () => {
     const filtrados = materiales.filter(m => m.nombre.toLowerCase().includes(busqueda.toLowerCase()));
 
     return (
-        <div className="p-8 max-w-7xl mx-auto bg-[#f8fafc] min-h-screen">
-            
+        <div className="p-4 md:p-8 max-w-7xl mx-auto bg-[#f8fafc] min-h-screen">
+
             {/* ENCABEZADO */}
             <div className="flex justify-between items-start mb-8">
                 <div>
@@ -47,7 +47,7 @@ const InventarioPage = () => {
                     </h1>
                     <p className="text-slate-500 text-sm mt-1">Gestiona el stock base para la producción de cofres.</p>
                 </div>
-                <button 
+                <button
                     onClick={() => setMostrarForm(!mostrarForm)}
                     className="bg-[#2563eb] hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 font-medium shadow-sm transition-all text-sm"
                 >
@@ -60,13 +60,13 @@ const InventarioPage = () => {
                 <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-100 mb-6 animate-fade-in-down">
                     <h3 className="font-bold text-slate-700 mb-4">Nuevo Registro</h3>
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <input type="text" placeholder="Nombre Material" className="p-2 border rounded" required value={nuevoMaterial.nombre} onChange={e=>setNuevoMaterial({...nuevoMaterial, nombre: e.target.value})} />
-                        <select className="p-2 border rounded" value={nuevoMaterial.unidad_base} onChange={e=>setNuevoMaterial({...nuevoMaterial, unidad_base: e.target.value})}>
+                        <input type="text" placeholder="Nombre Material" className="p-2 border rounded" required value={nuevoMaterial.nombre} onChange={e => setNuevoMaterial({ ...nuevoMaterial, nombre: e.target.value })} />
+                        <select className="p-2 border rounded" value={nuevoMaterial.unidad_base} onChange={e => setNuevoMaterial({ ...nuevoMaterial, unidad_base: e.target.value })}>
                             <option value="gr">Gramos</option><option value="ml">Mililitros</option><option value="und">Unidades</option>
                         </select>
-                        <input type="text" placeholder="Presentación (Ej: Galón)" className="p-2 border rounded" value={nuevoMaterial.presentacion_compra} onChange={e=>setNuevoMaterial({...nuevoMaterial, presentacion_compra: e.target.value})} />
-                        <input type="number" placeholder="Contenido (Ej: 3785)" className="p-2 border rounded" value={nuevoMaterial.contenido_por_presentacion} onChange={e=>setNuevoMaterial({...nuevoMaterial, contenido_por_presentacion: e.target.value})} />
-                        <input type="number" placeholder="Alerta Mínimo" className="p-2 border rounded" value={nuevoMaterial.nivel_minimo_base} onChange={e=>setNuevoMaterial({...nuevoMaterial, nivel_minimo_base: e.target.value})} />
+                        <input type="text" placeholder="Presentación (Ej: Galón)" className="p-2 border rounded" value={nuevoMaterial.presentacion_compra} onChange={e => setNuevoMaterial({ ...nuevoMaterial, presentacion_compra: e.target.value })} />
+                        <input type="number" placeholder="Contenido (Ej: 3785)" className="p-2 border rounded" value={nuevoMaterial.contenido_por_presentacion} onChange={e => setNuevoMaterial({ ...nuevoMaterial, contenido_por_presentacion: e.target.value })} />
+                        <input type="number" placeholder="Alerta Mínimo" className="p-2 border rounded" value={nuevoMaterial.nivel_minimo_base} onChange={e => setNuevoMaterial({ ...nuevoMaterial, nivel_minimo_base: e.target.value })} />
                         <button type="submit" className="bg-green-600 text-white font-bold rounded">Guardar</button>
                     </form>
                 </div>
@@ -75,9 +75,9 @@ const InventarioPage = () => {
             {/* BARRA DE BÚSQUEDA */}
             <div className="bg-white p-1 rounded-lg border border-slate-200 mb-6 shadow-sm flex items-center">
                 <Search className="text-slate-400 ml-3" size={20} />
-                <input 
-                    type="text" 
-                    placeholder="Buscar material..." 
+                <input
+                    type="text"
+                    placeholder="Buscar material..."
                     className="w-full p-3 outline-none text-slate-600 bg-transparent"
                     value={busqueda}
                     onChange={(e) => setBusqueda(e.target.value)}

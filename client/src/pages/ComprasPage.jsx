@@ -9,7 +9,7 @@ const ComprasPage = () => {
     // Datos maestros
     const [materiales, setMateriales] = useState([]);
     const [proveedores, setProveedores] = useState([]);
-    
+
     // Lista de compras
     const [entradas, setEntradas] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -48,7 +48,7 @@ const ComprasPage = () => {
         e.preventDefault();
         try {
             await entradasService.registrarEntrada(nuevaCompra);
-            
+
             Swal.fire({
                 icon: 'success',
                 title: 'Compra Registrada',
@@ -58,11 +58,11 @@ const ComprasPage = () => {
 
             // Limpiar y recargar
             setNuevaCompra({ id_materia: '', id_proveedor: '', cantidad: '', costo: '' });
-            
+
             // Recargamos solo las entradas para actualizar la tabla
             const entradasData = await entradasService.obtenerEntradas();
             setEntradas(entradasData);
-            
+
         } catch (error) {
             Swal.fire('Error', 'No se pudo registrar la compra', 'error');
         }
@@ -76,29 +76,29 @@ const ComprasPage = () => {
     const matInfo = getMaterialInfo();
 
     return (
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto">
             <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3 mb-8">
                 <ShoppingCart className="text-green-600" size={32} />
                 Gestión de Compras (Entradas)
             </h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
+
                 {/* 1. FORMULARIO DE COMPRA */}
                 <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-100 h-fit">
                     <h3 className="text-lg font-bold text-slate-700 mb-4 border-b pb-2 flex items-center gap-2">
                         <Plus size={20} className="text-blue-500" /> Nueva Entrada
                     </h3>
-                    
+
                     <form onSubmit={handleCompra} className="space-y-5">
                         <div>
                             <label className="block text-sm font-medium text-slate-600 mb-1">Proveedor</label>
                             <div className="relative">
                                 <Truck className="absolute left-3 top-3 text-slate-400" size={18} />
-                                <select 
+                                <select
                                     className="w-full pl-10 p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-green-500 bg-white"
                                     value={nuevaCompra.id_proveedor}
-                                    onChange={e => setNuevaCompra({...nuevaCompra, id_proveedor: e.target.value})}
+                                    onChange={e => setNuevaCompra({ ...nuevaCompra, id_proveedor: e.target.value })}
                                     required
                                 >
                                     <option value="">Seleccionar Proveedor...</option>
@@ -113,10 +113,10 @@ const ComprasPage = () => {
                             <label className="block text-sm font-medium text-slate-600 mb-1">Material</label>
                             <div className="relative">
                                 <Package className="absolute left-3 top-3 text-slate-400" size={18} />
-                                <select 
+                                <select
                                     className="w-full pl-10 p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-green-500 bg-white"
                                     value={nuevaCompra.id_materia}
-                                    onChange={e => setNuevaCompra({...nuevaCompra, id_materia: e.target.value})}
+                                    onChange={e => setNuevaCompra({ ...nuevaCompra, id_materia: e.target.value })}
                                     required
                                 >
                                     <option value="">Seleccionar Material...</option>
@@ -135,12 +135,12 @@ const ComprasPage = () => {
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-600 mb-1">Cantidad Comprada</label>
-                                <input 
-                                    type="number" 
+                                <input
+                                    type="number"
                                     className="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-green-500"
                                     placeholder="Ej: 5"
                                     value={nuevaCompra.cantidad}
-                                    onChange={e => setNuevaCompra({...nuevaCompra, cantidad: e.target.value})}
+                                    onChange={e => setNuevaCompra({ ...nuevaCompra, cantidad: e.target.value })}
                                     required
                                 />
                                 <span className="text-xs text-slate-400">Unidades de presentación</span>
@@ -149,12 +149,12 @@ const ComprasPage = () => {
                                 <label className="block text-sm font-medium text-slate-600 mb-1">Costo Total</label>
                                 <div className="relative">
                                     <DollarSign className="absolute left-2 top-2.5 text-slate-400" size={16} />
-                                    <input 
-                                        type="number" 
+                                    <input
+                                        type="number"
                                         className="w-full pl-7 p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-green-500"
                                         placeholder="0.00"
                                         value={nuevaCompra.costo}
-                                        onChange={e => setNuevaCompra({...nuevaCompra, costo: e.target.value})}
+                                        onChange={e => setNuevaCompra({ ...nuevaCompra, costo: e.target.value })}
                                         required
                                     />
                                 </div>
@@ -180,7 +180,7 @@ const ComprasPage = () => {
                     <div className="bg-slate-50 border-b border-slate-200 px-6 py-4">
                         <h3 className="font-bold text-slate-700">Últimas Compras</h3>
                     </div>
-                    
+
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead className="bg-white border-b border-slate-100 text-xs uppercase text-slate-500 font-semibold">

@@ -11,7 +11,7 @@ const DashboardPage = () => {
         alertasStock: 0,
         costoProduccionActiva: 0
     });
-    
+
     const [alertasMateriales, setAlertasMateriales] = useState([]);
     const [ultimosTerminados, setUltimosTerminados] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -31,7 +31,7 @@ const DashboardPage = () => {
             // 1. Calcular Estadísticas de Producción
             const activos = produccion.filter(o => o.estado !== 'Terminado');
             const finalizados = produccion.filter(o => o.estado === 'Terminado');
-            
+
             const costoActivo = activos.reduce((acc, curr) => acc + (parseFloat(curr.costo_total) || 0), 0);
 
             // 2. Calcular Alertas de Inventario
@@ -55,7 +55,7 @@ const DashboardPage = () => {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto min-h-screen">
+        <div className="p-4 md:p-8 max-w-7xl mx-auto min-h-screen">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-slate-800">Panel de Control</h1>
                 <p className="text-slate-500">Resumen general de la planta de producción.</p>
@@ -63,7 +63,7 @@ const DashboardPage = () => {
 
             {/* --- TARJETAS DE INDICADORES (KPIs) --- */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                
+
                 {/* Card 1: En Producción */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                     <div>
@@ -100,8 +100,8 @@ const DashboardPage = () => {
                     </div>
                 </div>
 
-                 {/* Card 4: Inversión Activa */}
-                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                {/* Card 4: Inversión Activa */}
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
                     <div>
                         <p className="text-slate-500 text-sm font-semibold uppercase tracking-wider">Inversión Activa</p>
                         <h2 className="text-2xl font-bold text-slate-700 mt-1">${stats.costoProduccionActiva.toLocaleString('es-CO')}</h2>
@@ -114,7 +114,7 @@ const DashboardPage = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
+
                 {/* --- SECCIÓN IZQUIERDA: ALERTAS DE INVENTARIO --- */}
                 <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-red-50">
@@ -125,7 +125,7 @@ const DashboardPage = () => {
                             IR A COMPRAS <ArrowRight size={12} />
                         </Link>
                     </div>
-                    
+
                     {alertasMateriales.length === 0 ? (
                         <div className="p-8 text-center text-slate-400 flex flex-col items-center">
                             <CheckCircle size={48} className="text-green-200 mb-2" />

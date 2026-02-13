@@ -29,7 +29,7 @@ function App() {
             <ProtectedRoute>
               <div className="flex min-h-screen bg-gray-100">
                 <Sidebar />
-                <div className="ml-64 w-full">
+                <div className="md:ml-64 w-full">
                   <Routes>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/salidas" element={<SalidasPage />} />
