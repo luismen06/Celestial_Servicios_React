@@ -1,11 +1,18 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+<<<<<<< HEAD
 import { LayoutDashboard, Package, Hammer, Settings, FileText, Scroll, ShoppingCart, ArrowUpRight, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Sidebar = () => {
   const location = useLocation();
   const { logout } = useAuth();
+=======
+import { LayoutDashboard, Package, Hammer, Settings, FileText, Scroll, ShoppingCart, ArrowUpRight } from 'lucide-react';
+
+const Sidebar = () => {
+  const location = useLocation();
+>>>>>>> 9f67b034df47f309194333447d6b35ddf908cde7
 
   const menuItems = [
     { path: '/', icon: <LayoutDashboard size={20} />, label: 'Panel' },
@@ -23,7 +30,11 @@ const Sidebar = () => {
       {/* HEADER LOGO */}
       <div className="p-6">
         <h1 className="text-xl font-extrabold text-[#3b82f6] leading-tight">
+<<<<<<< HEAD
           Celestial <br /> Servicios
+=======
+          Celestial <br/> Servicios
+>>>>>>> 9f67b034df47f309194333447d6b35ddf908cde7
         </h1>
         <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">Gestión de Producción</p>
       </div>
@@ -36,10 +47,18 @@ const Sidebar = () => {
             <Link
               key={item.path}
               to={item.path}
+<<<<<<< HEAD
               className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all font-medium text-sm ${isActive
                   ? 'bg-[#2563eb] text-white shadow-md shadow-blue-900/20'
                   : 'hover:bg-slate-800 hover:text-white'
                 }`}
+=======
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all font-medium text-sm ${
+                isActive
+                  ? 'bg-[#2563eb] text-white shadow-md shadow-blue-900/20'
+                  : 'hover:bg-slate-800 hover:text-white'
+              }`}
+>>>>>>> 9f67b034df47f309194333447d6b35ddf908cde7
             >
               {item.icon}
               <span>{item.label}</span>
@@ -47,6 +66,7 @@ const Sidebar = () => {
           );
         })}
       </nav>
+<<<<<<< HEAD
 
       {/* LOGOUT + FOOTER */}
       <div className="p-4 border-t border-slate-800 space-y-3">
@@ -57,6 +77,11 @@ const Sidebar = () => {
           <LogOut size={18} />
           <span>Cerrar Sesión</span>
         </button>
+=======
+      
+      {/* FOOTER OPCIONAL */}
+      <div className="p-4 border-t border-slate-800">
+>>>>>>> 9f67b034df47f309194333447d6b35ddf908cde7
         <p className="text-xs text-slate-600 text-center">v0.0.4 - Celestial Dev</p>
       </div>
     </div>

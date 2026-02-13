@@ -95,4 +95,3 @@ app.listen(PORT, async () => {
         console.error("❌ Error conectando a BD:", error);
     }
 });
-
