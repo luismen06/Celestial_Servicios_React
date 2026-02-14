@@ -1,6 +1,13 @@
+/**
+ * inventarioController.js
+ * 
+ * Operaciones básicas sobre materias primas: listar, crear
+ * y verificar stock antes de producción.
+ */
+
 const { MateriaPrima } = require('../models/asociaciones');
 
-// Función para obtener todo
+/** Lista todas las materias primas con su stock actual */
 const obtenerTodo = async (req, res) => {
     try {
         const lista = await MateriaPrima.findAll();
@@ -10,7 +17,7 @@ const obtenerTodo = async (req, res) => {
     }
 };
 
-// Función para crear
+/** Crea o registra una nueva materia prima en el catálogo */
 const crearMateria = async (req, res) => {
     try {
         const nuevo = await MateriaPrima.create(req.body);
@@ -20,8 +27,13 @@ const crearMateria = async (req, res) => {
     }
 };
 
+/**
+ * Verifica si hay stock suficiente para una lista de materiales.
+ * Recibe un array [{id_materia, cantidad}] y devuelve los faltantes.
+ * Se usa antes de iniciar producción para validar sin tocar nada.
+ */
 const verificarStock = async (req, res) => {
-    const { lista } = req.body; // Espera un array [{ id_materia, cantidad }]
+    const { lista } = req.body;
     try {
         const faltantes = [];
         for (const item of lista) {
@@ -36,11 +48,11 @@ const verificarStock = async (req, res) => {
                 });
             }
         }
-        
+
         if (faltantes.length > 0) {
             return res.status(409).json({ error: 'STOCK_INSUFICIENTE', lista: faltantes });
         }
-        
+
         res.json({ message: 'Stock suficiente' });
     } catch (error) {
         res.status(500).json({ error: error.message });

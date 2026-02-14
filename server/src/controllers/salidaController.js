@@ -1,8 +1,18 @@
+/**
+ * salidaController.js
+ * 
+ * Gestiona las salidas de materia prima (consumos).
+ * Usa algoritmo PEPS para calcular el costo real de cada salida
+ * consumiendo lotes desde el más antiguo al más nuevo.
+ */
+
 const { Salida, MateriaPrima, Entrada, Cofre } = require('../models/asociaciones');
 const sequelize = require('../config/database');
 const { Op } = require('sequelize');
 
-// 1. OBTENER LISTA DE SALIDAS
+/**
+ * Lista todas las salidas con el nombre del material y el cofre destino.
+ */
 const obtenerSalidas = async (req, res) => {
     try {
         const salidas = await Salida.findAll({
@@ -19,7 +29,7 @@ const obtenerSalidas = async (req, res) => {
             unidad_base: s.MateriaPrima ? s.MateriaPrima.unidad_base : '',
             id_cofre: s.id_cofre || null,
             cantidad_base_usada: s.cantidad_base_usada,
-            costo: s.costo_calculado, // Mostrar el costo real
+            costo: s.costo_calculado,
             tipo_salida: s.tipo_salida,
             fecha: s.fecha
         }));
@@ -30,7 +40,16 @@ const obtenerSalidas = async (req, res) => {
     }
 };
 
-// 2. REGISTRAR SALIDA (LÓGICA PEPS + DESCUENTO GLOBAL)
+/**
+ * Registra una salida manual consumiendo lotes PEPS.
+ * 
+ * Flujo:
+ * 1. Verificar que la materia prima existe
+ * 2. Buscar lotes con stock (ordenados por fecha ASC = PEPS)
+ * 3. Ir tomando de cada lote hasta cubrir la cantidad requerida
+ * 4. Crear registro de salida con costo real acumulado
+ * 5. Decrementar el stock global
+ */
 const registrarSalida = async (req, res) => {
     const { id_materia, id_cofre, cantidad, tipo } = req.body;
     const t = await sequelize.transaction();
@@ -38,32 +57,29 @@ const registrarSalida = async (req, res) => {
     try {
         const cantidadRequerida = parseFloat(cantidad);
 
-        // PASO 1: Obtener la Materia Prima (Vital para descontar el global al final)
         const materiaGlobal = await MateriaPrima.findByPk(id_materia, { transaction: t });
-        
+
         if (!materiaGlobal) {
             throw new Error('La materia prima no existe.');
         }
 
-        // PASO 2: Buscar lotes disponibles (PEPS)
+        // Buscar lotes que aún tengan stock
         const lotes = await Entrada.findAll({
-            where: { 
-                id_materia, 
-                stock_restante_lote: { [Op.gt]: 0 } // Solo lotes con algo de vida
+            where: {
+                id_materia,
+                stock_restante_lote: { [Op.gt]: 0 }
             },
-            order: [['fecha', 'ASC']], // Primero en entrar, primero en salir
+            order: [['fecha', 'ASC']],    // Primero en entrar, primero en salir
             transaction: t
         });
 
-        // Validar si la suma de lotes alcanza (Doble seguridad)
+        // Verificar que la suma de lotes cubre lo requerido
         const stockEnLotes = lotes.reduce((sum, l) => sum + parseFloat(l.stock_restante_lote), 0);
         if (stockEnLotes < cantidadRequerida) {
-            // Si los lotes están vacíos pero el global decía que había, hay inconsistencia.
-            // Aún así, detenemos para no romper PEPS.
             throw new Error(`Inconsistencia PEPS: No hay suficientes lotes con stock para cubrir ${cantidadRequerida}.`);
         }
 
-        // PASO 3: Consumir Lotes (Cálculo de Costo Real)
+        // Consumir lotes y acumular costo real
         let porDescontar = cantidadRequerida;
         let costoTotalSalida = 0;
 
@@ -72,39 +88,34 @@ const registrarSalida = async (req, res) => {
 
             const disponible = parseFloat(lote.stock_restante_lote);
             const costoUnitarioLote = parseFloat(lote.costo_unitario || 0);
-            
+
             let tomar = 0;
 
             if (disponible >= porDescontar) {
-                // Este lote alcanza para todo lo que falta
                 tomar = porDescontar;
                 lote.stock_restante_lote = disponible - tomar;
                 porDescontar = 0;
             } else {
-                // Nos acabamos este lote y seguimos al siguiente
                 tomar = disponible;
                 lote.stock_restante_lote = 0;
                 porDescontar -= tomar;
             }
 
             costoTotalSalida += (tomar * costoUnitarioLote);
-            await lote.save({ transaction: t }); // Guardamos el lote actualizado
+            await lote.save({ transaction: t });
         }
 
-        // PASO 4: Crear el registro de Salida
         await Salida.create({
-            id_materia, 
+            id_materia,
             id_cofre: id_cofre || null,
             cantidad_base_usada: cantidadRequerida,
             costo_calculado: costoTotalSalida,
             tipo_salida: tipo
         }, { transaction: t });
 
-        // PASO 5: Actualizar Stock Global (MateriaPrima)
-        // Usamos la instancia que buscamos en el Paso 1. Esto es infalible.
-        await materiaGlobal.decrement('cantidad_total_base', { 
-            by: cantidadRequerida, 
-            transaction: t 
+        await materiaGlobal.decrement('cantidad_total_base', {
+            by: cantidadRequerida,
+            transaction: t
         });
 
         await t.commit();

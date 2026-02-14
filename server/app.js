@@ -1,20 +1,16 @@
 /**
- * server.js - Punto de entrada principal del backend
+ * app.js - Express app exportable para testing
  * 
- * Configura Express, conecta middleware de autenticación,
- * registra las rutas de la API y sincroniza la BD con Sequelize.
- * 
- * @author Luis Meneses
- * @version 0.4.0
+ * Misma configuración que server.js pero sin app.listen()
+ * para que supertest pueda manejar el ciclo de vida.
  */
 
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const sequelize = require('./src/config/database');
 const { ModeloCofre, Etapa, Trabajador } = require('./src/models/asociaciones');
 
-// --- Importar rutas ---
+// Rutas
 const authRoutes = require('./src/routes/authRoutes');
 const authMiddleware = require('./src/middlewares/authMiddleware');
 const inventarioRoutes = require('./src/routes/inventarioRoutes');
@@ -27,26 +23,17 @@ const configuracionController = require('./src/controllers/configuracionControll
 const reportesRoutes = require('./src/routes/reportesRoutes');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Middlewares globales
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
-// ===============================
-// Autenticación (ruta pública, sin JWT)
-// ===============================
+// Auth público
 app.use('/api/auth', authRoutes);
 
-// ===============================
-// Middleware JWT - protege todas las rutas /api/* que vienen después
-// ===============================
+// Middleware JWT para todo lo demás
 app.use('/api', authMiddleware);
 
-// ===============================
-// Rutas principales (cada módulo tiene su propio archivo de rutas)
-// ===============================
+// Rutas protegidas
 app.use('/api/inventario', inventarioRoutes);
 app.use('/api/entradas', entradaRoutes);
 app.use('/api/proveedores', proveedorRoutes);
@@ -55,9 +42,7 @@ app.use('/api/salidas', salidaRoutes);
 app.use('/api/recetas', recetaRoutes);
 app.use('/api/reportes', reportesRoutes);
 
-// ===============================
-// Rutas de catálogos (endpoints sencillos que no necesitan su propio archivo)
-// ===============================
+// Catálogos rápidos
 app.get('/api/modelos', async (req, res) => {
     const lista = await ModeloCofre.findAll();
     res.json(lista);
@@ -69,34 +54,19 @@ app.get('/api/etapas', async (req, res) => {
 });
 
 app.get('/api/trabajadores', async (req, res) => {
-    // Solo enviamos trabajadores activos al frontend
-    const lista = await Trabajador.findAll({
-        where: { activo: true }
-    });
+    const lista = await Trabajador.findAll({ where: { activo: true } });
     res.json(lista);
 });
 
-// Configuración general (modelos, trabajadores, proveedores)
+// Configuración
 app.get('/api/configuracion', configuracionController.obtenerTodosLosMaestros);
 app.post('/api/config/modelos', configuracionController.guardarModelo);
 app.delete('/api/config/modelos/:id', configuracionController.eliminarModelo);
 app.post('/api/config/trabajadores', configuracionController.guardarTrabajador);
 app.post('/api/config/proveedores', configuracionController.guardarProveedor);
 
-// Alias de ruta para avanzar etapa (el frontend usa /api/avanzar en algunos lugares)
+// Avanzar etapa (alias)
 const produccionController = require('./src/controllers/produccionController');
 app.post('/api/avanzar', produccionController.avanzarEtapa);
 
-// ===============================
-// Arranque del servidor
-// ===============================
-app.listen(PORT, async () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
-    try {
-        // alter:true actualiza las tablas sin perder datos (ideal para dev)
-        await sequelize.sync({ alter: true });
-        console.log("BD sincronizada correctamente.");
-    } catch (error) {
-        console.error("Error conectando a BD:", error);
-    }
-});
+module.exports = app;

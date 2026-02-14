@@ -1,9 +1,20 @@
+/**
+ * produccionController.js
+ * 
+ * Maneja todo el flujo de producción: tablero, inicio de órdenes,
+ * avance de etapas y finalización. El inicio de producción y los
+ * materiales extra usan el algoritmo PEPS para costeo real.
+ */
+
 const { Cofre, ModeloCofre, Etapa, Receta, MateriaPrima, Salida, HistorialProduccion, Trabajador, Entrada } = require('../models/asociaciones');
 const sequelize = require('../config/database');
 const { Op } = require('sequelize');
 
 
-// 1. VER TABLERO
+/**
+ * Obtiene el tablero de producción con todas las órdenes,
+ * incluyendo historial y costo total calculado desde PEPS.
+ */
 const obtenerProduccion = async (req, res) => {
     try {
         const produccion = await Cofre.findAll({
@@ -18,25 +29,24 @@ const obtenerProduccion = async (req, res) => {
                         { model: Etapa, attributes: ['nombre'] }
                     ]
                 },
-                // Incluimos Salidas para sumar los costos ya calculados
+                // Traemos las salidas para sumar el costo real por PEPS
                 { model: Salida, attributes: ['costo_calculado'] }
             ],
             order: [['id_cofre', 'DESC']]
         });
 
+        // Transformamos la data para que el frontend la consuma fácil
         const datos = produccion.map(c => {
             const listaHistorial = c.historial || [];
             const ultimoEvento = listaHistorial.sort((a, b) => b.id_historial - a.id_historial)[0];
 
-            // --- CÁLCULO DE COSTO REAL (MUCHO MÁS FÁCIL) ---
+            // Costo total = suma de todas las salidas PEPS del cofre
             let costoTotal = 0;
             if (c.Salidas) {
                 c.Salidas.forEach(s => {
-                    // Simplemente sumamos lo que guardó el algoritmo PEPS
                     costoTotal += parseFloat(s.costo_calculado || 0);
                 });
             }
-
 
             return {
                 id_cofre: c.id_cofre,
@@ -45,9 +55,7 @@ const obtenerProduccion = async (req, res) => {
                 id_etapa_actual: c.id_etapa_actual,
                 trabajador: (ultimoEvento && ultimoEvento.Trabajador) ? ultimoEvento.Trabajador.nombre : 'Sin asignar',
                 estado: c.estado,
-
-                costo_total: costoTotal, // <--- COSTO REAL PEPS
-
+                costo_total: costoTotal,
                 detalles_historial: listaHistorial.sort((a, b) => a.id_historial - b.id_historial).map(h => ({
                     etapa: h.Etapa ? h.Etapa.nombre : 'Etapa ' + h.id_etapa,
                     trabajador: h.Trabajador ? h.Trabajador.nombre : 'N/A',
@@ -63,13 +71,22 @@ const obtenerProduccion = async (req, res) => {
     }
 };
 
-// 2. INICIAR PRODUCCIÓN 
+/**
+ * Inicia una nueva orden de producción.
+ * 
+ * Flujo:
+ * 1. Busca la receta del modelo seleccionado
+ * 2. Verifica que haya stock suficiente de todos los materiales
+ * 3. Crea el cofre y su primer registro de historial
+ * 4. Descuenta inventario lote por lote siguiendo PEPS
+ * 5. Registra cada salida con su costo real
+ */
 const iniciarProduccion = async (req, res) => {
     const { id_modelo, id_trabajador } = req.body;
     const t = await sequelize.transaction();
 
     try {
-        // A. Buscar Receta
+        // Traer la receta con los datos del material
         const ingredientes = await Receta.findAll({
             where: { id_modelo },
             include: [{ model: MateriaPrima, attributes: ['nombre', 'unidad_base', 'cantidad_total_base'] }],
@@ -81,17 +98,14 @@ const iniciarProduccion = async (req, res) => {
             return res.status(400).json({ error: 'Este modelo no tiene receta definida.' });
         }
 
-        // ============================================================
-        // FASE 1: EL ESCUDO (Verificación Previa)
-        // Revisamos TODO antes de crear el cofre o tocar el inventario
-        // ============================================================
+        // FASE 1: Verificar stock antes de tocar nada
+        // Si falta algo, paramos y le avisamos al usuario qué comprar
         const faltantes = [];
 
         for (const item of ingredientes) {
             const stockActual = parseFloat(item.MateriaPrima.cantidad_total_base);
             const cantidadRequerida = parseFloat(item.cantidad_estimada);
 
-            // Validamos contra el stock global (que es la suma de todas las entradas)
             if (stockActual < cantidadRequerida) {
                 faltantes.push({
                     nombre: item.MateriaPrima.nombre,
@@ -103,20 +117,17 @@ const iniciarProduccion = async (req, res) => {
             }
         }
 
-        // Si la lista de faltantes tiene algo, DETENEMOS TODO AQUÍ.
         if (faltantes.length > 0) {
-            await t.rollback(); // No se crea el cofre, no se toca nada.
+            await t.rollback();
             return res.status(409).json({
                 error: 'STOCK_INSUFICIENTE',
                 lista: faltantes
             });
         }
 
-        // ============================================================
-        // FASE 2: EJECUCIÓN (Si llegamos aquí, hay stock seguro)
-        // ============================================================
+        // FASE 2: Todo OK, procedemos a crear la orden
 
-        // B. Crear Cofre y Etapa Inicial
+        // Buscar la primera etapa del flujo
         const etapaInicial = await Etapa.findOne({ order: [['id_etapa', 'ASC']], transaction: t });
         const idEtapa = etapaInicial ? etapaInicial.id_etapa : 1;
 
@@ -124,26 +135,27 @@ const iniciarProduccion = async (req, res) => {
             id_modelo, id_etapa_actual: idEtapa, estado: 'En Proceso'
         }, { transaction: t });
 
+        // Primer registro en el historial
         await HistorialProduccion.create({
             id_cofre: nuevoCofre.id_cofre, id_etapa: idEtapa, id_trabajador: id_trabajador, fecha_cambio: new Date()
         }, { transaction: t });
 
-        // C. PROCESO DE DESCUENTO PEPS
+        // Descuento PEPS: recorrer lotes del más viejo al más nuevo
         for (const item of ingredientes) {
             let cantidadRequerida = parseFloat(item.cantidad_estimada);
             const materiaId = item.id_materia;
 
-            // 1. Buscamos lotes disponibles en Entradas
+            // Lotes con stock disponible, ordenados por fecha de compra (PEPS)
             const lotesDisponibles = await Entrada.findAll({
                 where: {
                     id_materia: materiaId,
                     stock_restante_lote: { [Op.gt]: 0 }
                 },
-                order: [['fecha', 'ASC']], // Primero en entrar, primero en salir
+                order: [['fecha', 'ASC']],
                 transaction: t
             });
 
-            // 2. Consumir lotes
+            // Ir consumiendo lotes hasta cubrir lo que pide la receta
             for (const lote of lotesDisponibles) {
                 if (cantidadRequerida <= 0) break;
 
@@ -153,10 +165,12 @@ const iniciarProduccion = async (req, res) => {
                 let aDescontar = 0;
 
                 if (disponibleEnLote >= cantidadRequerida) {
+                    // El lote alcanza para todo
                     aDescontar = cantidadRequerida;
                     lote.stock_restante_lote = disponibleEnLote - aDescontar;
                     cantidadRequerida = 0;
                 } else {
+                    // Tomamos todo el lote y seguimos con el siguiente
                     aDescontar = disponibleEnLote;
                     lote.stock_restante_lote = 0;
                     cantidadRequerida -= aDescontar;
@@ -164,7 +178,7 @@ const iniciarProduccion = async (req, res) => {
 
                 await lote.save({ transaction: t });
 
-                // Registro de Salida con Costo Real
+                // Cada fragmento de lote genera su propia salida con costo real
                 await Salida.create({
                     id_materia: materiaId,
                     id_cofre: nuevoCofre.id_cofre,
@@ -174,8 +188,7 @@ const iniciarProduccion = async (req, res) => {
                 }, { transaction: t });
             }
 
-            // 3. Actualizar Stock Global (MateriaPrima)
-            // Esto mantiene sincronizado el global con la suma de entradas
+            // Actualizar el stock global de la materia prima
             await MateriaPrima.decrement('cantidad_total_base', {
                 by: item.cantidad_estimada,
                 where: { id_materia: materiaId },
@@ -193,14 +206,17 @@ const iniciarProduccion = async (req, res) => {
     }
 };
 
-// 3. AVANZAR ETAPA 
+/**
+ * Avanza el cofre a la siguiente etapa o lo marca como terminado.
+ * También procesa materiales extra que el trabajador haya usado
+ * durante esa etapa (con descuento PEPS igual que al iniciar).
+ */
 const avanzarEtapa = async (req, res) => {
     const { id_cofre, id_etapa_nueva, id_trabajador, materialesExtra } = req.body;
-    console.log('🔍 AVANZAR ETAPA - Body recibido:', JSON.stringify({ id_cofre, id_etapa_nueva, id_trabajador, materialesExtra }, null, 2));
     const t = await sequelize.transaction();
 
     try {
-        // DETECTAR SI ES EL FINAL
+        // Si no hay etapa siguiente o viene "TERMINADO", cerramos la orden
         const esFin = (id_etapa_nueva === "TERMINADO" || !id_etapa_nueva);
 
         if (esFin) {
@@ -221,21 +237,18 @@ const avanzarEtapa = async (req, res) => {
             }, { transaction: t });
         }
 
-        // --- PROCESAR MATERIALES EXTRA (PEPS) ---
-        console.log('🔍 materialesExtra recibidos:', materialesExtra ? materialesExtra.length : 'null/undefined');
+        // Procesar materiales extra con PEPS (misma lógica que iniciarProduccion)
         if (materialesExtra && materialesExtra.length > 0) {
-            console.log('🔍 Procesando', materialesExtra.length, 'materiales extra...');
             for (const mat of materialesExtra) {
                 let cantidadRequerida = parseFloat(mat.cantidad);
                 const materiaId = mat.id_materia;
 
-                // Buscar materia prima global
                 const materiaGlobal = await MateriaPrima.findByPk(materiaId, { transaction: t });
                 if (!materiaGlobal) {
                     throw new Error(`Materia prima ID ${materiaId} no existe.`);
                 }
 
-                // Buscar lotes disponibles (PEPS)
+                // Buscar lotes con stock (PEPS)
                 const lotesDisponibles = await Entrada.findAll({
                     where: {
                         id_materia: materiaId,
@@ -275,7 +288,7 @@ const avanzarEtapa = async (req, res) => {
                     await lote.save({ transaction: t });
                 }
 
-                // Crear registro de Salida
+                // Registrar salida y actualizar stock global
                 await Salida.create({
                     id_materia: materiaId,
                     id_cofre: id_cofre,
@@ -284,7 +297,6 @@ const avanzarEtapa = async (req, res) => {
                     tipo_salida: 'Produccion'
                 }, { transaction: t });
 
-                // Actualizar stock global
                 await materiaGlobal.decrement('cantidad_total_base', {
                     by: cantidadRequerida,
                     transaction: t
@@ -301,6 +313,11 @@ const avanzarEtapa = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+/**
+ * Finaliza una orden de producción directamente (sin avanzar etapas).
+ * Se usa como fallback desde el frontend.
+ */
 const finalizarProduccion = async (req, res) => {
     const { id_cofre } = req.body;
     try {

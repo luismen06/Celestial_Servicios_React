@@ -121,7 +121,6 @@ const ProduccionPage = () => {
                 id_trabajador: idTrabajadorNext,
                 materialesExtra: listaMaterialesExtra
             };
-            console.log('🔍 Enviando avanzarEtapa:', JSON.stringify(payload, null, 2));
             await produccionService.avanzarEtapa(payload);
             Swal.fire({ icon: 'success', title: 'Actualizado', timer: 1500, showConfirmButton: false });
             setOrdenAvanzar(null);

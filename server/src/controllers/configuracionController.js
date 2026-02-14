@@ -1,6 +1,16 @@
+/**
+ * configuracionController.js
+ * 
+ * Gestiona los catálogos maestros: Modelos de cofre,
+ * Trabajadores y Proveedores. Incluye validación para
+ * no borrar modelos que ya tienen historial de producción.
+ */
+
 const { ModeloCofre, Trabajador, Proveedor, Cofre, Receta } = require('../models/asociaciones');
 
 // --- MODELOS DE COFRES ---
+
+/** Crea o actualiza un modelo de cofre por su ID */
 const guardarModelo = async (req, res) => {
     try {
         const { nombre, id_modelo } = req.body;
@@ -14,10 +24,13 @@ const guardarModelo = async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
+/**
+ * Elimina un modelo solo si no tiene cofres producidos ni recetas.
+ * Esto evita dejar registros huérfanos en la BD.
+ */
 const eliminarModelo = async (req, res) => {
     try {
         const { id } = req.params;
-        // VALIDACIÓN: No borrar si ya se usó en producción o tiene receta
         const usoCofres = await Cofre.count({ where: { id_modelo: id } });
         const usoRecetas = await Receta.count({ where: { id_modelo: id } });
 
@@ -31,10 +44,12 @@ const eliminarModelo = async (req, res) => {
 };
 
 // --- TRABAJADORES ---
+
+/** Crea o actualiza un trabajador. Normaliza el campo "activo" de distintos formatos */
 const guardarTrabajador = async (req, res) => {
     try {
         const { nombre, activo, id_trabajador } = req.body;
-        // Convertir "on" o true a booleano 1/0
+        // El frontend manda diferentes formatos: true, "true", 1, "on"...
         const estadoActivo = (activo === true || activo === 'true' || activo === 1);
 
         if (id_trabajador) {
@@ -48,6 +63,8 @@ const guardarTrabajador = async (req, res) => {
 };
 
 // --- PROVEEDORES ---
+
+/** Crea o actualiza un proveedor por su ID */
 const guardarProveedor = async (req, res) => {
     try {
         const { nombre, id_proveedor } = req.body;
@@ -61,11 +78,13 @@ const guardarProveedor = async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
-// GETTERS GENERALES (Para llenar las tablas de configuración)
+/**
+ * Retorna todos los catálogos maestros para la página de configuración.
+ * Incluye trabajadores inactivos para que se puedan reactivar desde el frontend.
+ */
 const obtenerTodosLosMaestros = async (req, res) => {
     const modelos = await ModeloCofre.findAll();
-    // Traemos TODOS los trabajadores (activos e inactivos) para poder editarlos
-    const trabajadores = await Trabajador.findAll(); 
+    const trabajadores = await Trabajador.findAll();
     const proveedores = await Proveedor.findAll();
     res.json({ modelos, trabajadores, proveedores });
 };

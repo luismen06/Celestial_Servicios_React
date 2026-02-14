@@ -1,0 +1,18 @@
+# Dependencias
+node_modules/
+
+# Build del frontend
+client/dist/
+
+# Variables de entorno
+.env
+
+# Base de datos local
+*.sqlite
+
+# Logs
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

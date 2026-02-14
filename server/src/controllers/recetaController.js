@@ -1,6 +1,14 @@
+/**
+ * recetaController.js
+ * 
+ * CRUD para las recetas de cada modelo de cofre.
+ * Cada receta define qué materiales y en qué cantidad
+ * se necesitan para producir un modelo específico.
+ */
+
 const { Receta, MateriaPrima } = require('../models/asociaciones');
 
-// OBTENER RECETA POR MODELO
+/** Obtiene todos los ingredientes de la receta de un modelo dado */
 const obtenerPorModelo = async (req, res) => {
     try {
         const { idModelo } = req.params;
@@ -22,7 +30,7 @@ const obtenerPorModelo = async (req, res) => {
     }
 };
 
-// AGREGAR INGREDIENTE
+/** Agrega un ingrediente a la receta de un modelo */
 const agregarIngrediente = async (req, res) => {
     try {
         await Receta.create({
@@ -36,7 +44,7 @@ const agregarIngrediente = async (req, res) => {
     }
 };
 
-// ELIMINAR INGREDIENTE
+/** Elimina un ingrediente de la receta */
 const eliminarIngrediente = async (req, res) => {
     try {
         await Receta.destroy({ where: { id_receta: req.params.id } });

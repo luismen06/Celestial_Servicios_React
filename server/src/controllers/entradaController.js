@@ -1,8 +1,18 @@
-// Archivo: src/controllers/entradaController.js
+/**
+ * entradaController.js
+ * 
+ * Gestiona las compras de materia prima (Entradas).
+ * Cada compra crea un lote PEPS con su costo unitario calculado
+ * y actualiza el stock global del material.
+ */
+
 const { Entrada, MateriaPrima, Proveedor } = require('../models/asociaciones');
 const sequelize = require('../config/database');
 
-// 1. OBTENER LISTA DE ENTRADAS
+/**
+ * Lista todas las entradas (compras) ordenadas por fecha.
+ * Incluye nombre del material y proveedor para mostrar en la tabla.
+ */
 const obtenerEntradas = async (req, res) => {
     try {
         const entradas = await Entrada.findAll({
@@ -29,60 +39,64 @@ const obtenerEntradas = async (req, res) => {
     }
 };
 
-// 2. REGISTRAR UNA ENTRADA (COMPRA)
+/**
+ * Registra una nueva compra y actualiza el inventario.
+ * 
+ * Convierte la cantidad de presentaciones (ej: 5 canecas) a unidad base
+ * (ej: 1000 ml) y calcula el costo unitario por unidad base para PEPS.
+ */
 const registrarEntrada = async (req, res) => {
-    // Convertimos todo a números para evitar errores de texto
     const id_materia = parseInt(req.body.id_materia);
     const id_proveedor = parseInt(req.body.id_proveedor);
-    const cantidad = parseFloat(req.body.cantidad); // Cantidad de presentaciones (ej: 5 canecas)
-    const costo = parseFloat(req.body.costo);       // Costo total $$$
+    const cantidad = parseFloat(req.body.cantidad);   // Presentaciones compradas (ej: 5 canecas)
+    const costo = parseFloat(req.body.costo);         // Costo total de la factura
 
     const t = await sequelize.transaction();
 
     try {
-        // 1. Buscar la materia prima para saber cuánto trae cada presentación
+        // Buscar el material para saber la conversión de presentación a unidad base
         const materia = await MateriaPrima.findByPk(id_materia, { transaction: t });
-        
+
         if (!materia) {
             await t.rollback();
             return res.status(404).json({ error: 'Material no encontrado' });
         }
 
-        // VALIDACIÓN IMPORTANTE: Si contenido_por_presentacion es 0, el stock nunca subirá
+        // Si el contenido por presentación es 0, la conversión falla y el stock nunca sube
         const contenido = parseFloat(materia.contenido_por_presentacion);
         if (!contenido || contenido <= 0) {
             await t.rollback();
             return res.status(400).json({ error: 'El material tiene "Contenido por presentación" en 0. Edítalo en Inventario primero.' });
         }
 
-        // 2. Cálculos Matemáticos
-        const totalBase = cantidad * contenido; // Ej: 5 canecas * 200ml = 1000ml
-        const costoUnitarioCalculado = costo / totalBase; // Precio por ml/gr
+        // Conversión: 5 canecas * 200ml/caneca = 1000ml
+        const totalBase = cantidad * contenido;
+        // Costo por unidad base: $50000 / 1000ml = $50/ml
+        const costoUnitarioCalculado = costo / totalBase;
 
-        // 3. Crear registro de entrada (Lote PEPS)
-       await Entrada.create({
+        // Crear el lote PEPS (nace con stock_restante_lote = totalBase)
+        await Entrada.create({
             id_materia,
             id_proveedor,
             cantidad_presentacion_comprada: cantidad,
             cantidad_base_total: totalBase,
-            stock_restante_lote: totalBase,  // El lote nace lleno
+            stock_restante_lote: totalBase,
             costo_unitario: costoUnitarioCalculado,
             costo_total_compra: costo
         }, { transaction: t });
 
-        // 4. ACTUALIZAR STOCK GLOBAL (MANUALMENTE PARA MAYOR SEGURIDAD)
-        // En lugar de materia.increment, sumamos y guardamos explícitamente.
+        // Actualizar stock global manualmente (más seguro que increment)
         const stockActual = parseFloat(materia.cantidad_total_base) || 0;
         const nuevoStock = stockActual + totalBase;
-        
+
         materia.cantidad_total_base = nuevoStock;
         await materia.save({ transaction: t });
 
-        await t.commit(); 
+        await t.commit();
         res.json({ message: 'Entrada registrada y stock actualizado', nuevoStock });
 
     } catch (error) {
-        await t.rollback(); 
+        await t.rollback();
         console.error("Error en Compra:", error);
         res.status(500).json({ error: error.message });
     }
